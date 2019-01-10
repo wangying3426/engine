@@ -90,7 +90,7 @@ class SingleViewPresentation extends Presentation {
             int viewId,
             Object createParams
     ) {
-        super(outerContext, display);
+        super(outerContext, display, viewFactory.getPresentationTheme());
         mViewFactory = viewFactory;
         mAccessibilityEventsDelegate = accessibilityEventsDelegate;
         mViewId = viewId;
