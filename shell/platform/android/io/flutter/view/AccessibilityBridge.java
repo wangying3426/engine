@@ -453,8 +453,17 @@ public class AccessibilityBridge extends AccessibilityNodeProvider {
         // to set it if we're exiting a list to a non-list, so that we can get the "out of list"
         // announcement when A11y focus moves out of a list and not into another list.
         return semanticsNode.scrollChildren > 0
-                && (SemanticsNode.nullableHasAncestor(accessibilityFocusedSemanticsNode, o -> o == semanticsNode)
-                    || !SemanticsNode.nullableHasAncestor(accessibilityFocusedSemanticsNode, o -> o.hasFlag(Flag.HAS_IMPLICIT_SCROLLING)));
+                && (SemanticsNode.nullableHasAncestor(accessibilityFocusedSemanticsNode, new Predicate<SemanticsNode>() {
+                    @Override
+                    public boolean test(SemanticsNode o) {
+                        return o == semanticsNode;
+                    }
+                }) || !SemanticsNode.nullableHasAncestor(accessibilityFocusedSemanticsNode, new Predicate<SemanticsNode>() {
+                    @Override
+                    public boolean test(SemanticsNode o) {
+                        return o.hasFlag(Flag.HAS_IMPLICIT_SCROLLING);
+                    }
+                }));
     }
 
     /**
