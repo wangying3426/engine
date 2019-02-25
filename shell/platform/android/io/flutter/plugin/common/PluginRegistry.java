@@ -7,6 +7,8 @@ package io.flutter.plugin.common;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.view.View;
+
 import io.flutter.plugin.platform.PlatformViewRegistry;
 import io.flutter.view.FlutterNativeView;
 import io.flutter.view.FlutterView;
@@ -108,10 +110,10 @@ public interface PluginRegistry {
         PlatformViewRegistry platformViewRegistry();
 
         /**
-         * Returns the {@link FlutterView} that's instantiated by this plugin's
+         * Returns the {@link FlutterView} or {@link FlutterTextureView} that's instantiated by this plugin's
          * {@link #activity() activity}.
          */
-        FlutterView view();
+        View view();
 
 
         /**

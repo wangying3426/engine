@@ -8,6 +8,8 @@ import android.app.Activity;
 import android.content.Context;
 import android.support.annotation.NonNull;
 import android.util.Log;
+import android.view.View;
+
 import io.flutter.app.FlutterPluginRegistry;
 import io.flutter.embedding.engine.FlutterJNI;
 import io.flutter.embedding.engine.FlutterEngine.EngineLifecycleListener;
@@ -28,7 +30,7 @@ public class FlutterNativeView implements BinaryMessenger {
 
     private final FlutterPluginRegistry mPluginRegistry;
     private final DartExecutor dartExecutor;
-    private FlutterView mFlutterView;
+    private IFlutterView mFlutterView;
     private final FlutterJNI mFlutterJNI;
     private final Context mContext;
     private boolean applicationIsRunning;
@@ -71,8 +73,8 @@ public class FlutterNativeView implements BinaryMessenger {
         return mPluginRegistry;
     }
 
-    public void attachViewAndActivity(FlutterView flutterView, Activity activity) {
-        mFlutterView = flutterView;
+    public void attachViewAndActivity(View flutterView, Activity activity) {
+        mFlutterView = (IFlutterView) flutterView;
         mPluginRegistry.attach(flutterView, activity);
     }
 

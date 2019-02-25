@@ -9,13 +9,14 @@ import android.content.Context;
 import android.content.Intent;
 
 import io.flutter.embedding.engine.FlutterEngine;
+import android.view.View;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.platform.PlatformViewRegistry;
 import io.flutter.plugin.platform.PlatformViewsController;
 import io.flutter.view.FlutterMain;
 import io.flutter.view.FlutterNativeView;
-import io.flutter.view.FlutterView;
+import io.flutter.view.IFlutterView;
 import io.flutter.view.TextureRegistry;
 
 import java.util.ArrayList;
@@ -35,7 +36,8 @@ public class FlutterPluginRegistry
     private Activity mActivity;
     private Context mAppContext;
     private FlutterNativeView mNativeView;
-    private FlutterView mFlutterView;
+    private View mView;
+    private IFlutterView mFlutterView;
 
     private final PlatformViewsController mPlatformViewsController;
     private final Map<String, Object> mPluginMap = new LinkedHashMap<>(0);
@@ -77,10 +79,11 @@ public class FlutterPluginRegistry
         return new FlutterRegistrar(pluginKey);
     }
 
-    public void attach(FlutterView flutterView, Activity activity) {
-        mFlutterView = flutterView;
+    public void attach(View flutterView, Activity activity) {
+        mView = flutterView;
+        mFlutterView = (IFlutterView) flutterView;
         mActivity = activity;
-        mPlatformViewsController.attach(activity, flutterView, flutterView);
+        mPlatformViewsController.attach(activity, mFlutterView, mFlutterView);
     }
 
     public void detach() {
@@ -136,8 +139,8 @@ public class FlutterPluginRegistry
         }
 
         @Override
-        public FlutterView view() {
-            return mFlutterView;
+        public View view() {
+          return mView;
         }
 
         @Override

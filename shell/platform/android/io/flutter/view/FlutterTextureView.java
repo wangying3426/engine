@@ -20,16 +20,33 @@ import android.support.annotation.RequiresApi;
 import android.text.format.DateFormat;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.view.*;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
+import android.view.Surface;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
+import android.view.TextureView;
+import android.view.WindowInsets;
+import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
+
+import java.lang.ref.WeakReference;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicLong;
+
 import io.flutter.app.FlutterPluginRegistry;
-import io.flutter.embedding.engine.FlutterJNI;
 import io.flutter.embedding.android.AndroidKeyProcessor;
 import io.flutter.embedding.android.AndroidTouchProcessor;
+import io.flutter.embedding.engine.FlutterJNI;
 import io.flutter.embedding.engine.dart.DartExecutor;
 import io.flutter.embedding.engine.renderer.FlutterRenderer;
 import io.flutter.embedding.engine.systemchannels.AccessibilityChannel;
@@ -40,21 +57,17 @@ import io.flutter.embedding.engine.systemchannels.NavigationChannel;
 import io.flutter.embedding.engine.systemchannels.PlatformChannel;
 import io.flutter.embedding.engine.systemchannels.SettingsChannel;
 import io.flutter.embedding.engine.systemchannels.SystemChannel;
-import io.flutter.plugin.common.*;
+import io.flutter.plugin.common.ActivityLifecycleListener;
+import io.flutter.plugin.common.BinaryMessenger;
+import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.editing.TextInputPlugin;
 import io.flutter.plugin.platform.PlatformPlugin;
 import io.flutter.plugin.platform.PlatformViewsController;
 
-import java.lang.ref.WeakReference;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
-
 /**
  * An Android view containing a Flutter app.
  */
-public class FlutterView extends SurfaceView implements BinaryMessenger, TextureRegistry, IFlutterView {
+public class FlutterTextureView extends CachedTextureView implements BinaryMessenger, TextureRegistry, IFlutterView {
     /**
      * Interface for those objects that maintain and expose a reference to a
      * {@code FlutterView} (such as a full-screen Flutter activity).
@@ -72,7 +85,7 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
          * Returns a reference to the Flutter view maintained by this object. This may
          * be {@code null}.
          */
-        FlutterView getFlutterView();
+        FlutterTextureView getFlutterView();
     }
 
     private static final String TAG = "FlutterView";
@@ -125,6 +138,7 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
 
     }
 
+    private final List<SurfaceTextureListener> mSurfaceTextureListeners = new LinkedList<>();
     private final DartExecutor dartExecutor;
     private final FlutterRenderer flutterRenderer;
     private final NavigationChannel navigationChannel;
@@ -138,7 +152,6 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
     private final AndroidKeyProcessor androidKeyProcessor;
     private final AndroidTouchProcessor androidTouchProcessor;
     private AccessibilityBridge mAccessibilityNodeProvider;
-    private final SurfaceHolder.Callback mSurfaceCallback;
     private final ViewportMetrics mMetrics;
     private final List<ActivityLifecycleListener> mActivityLifecycleListeners;
     private final List<FirstFrameListener> mFirstFrameListeners;
@@ -156,18 +169,18 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
     private PlatformPlugin mPlatformPlugin;
     private WeakReference<Activity> mActivityRef;
 
-    public FlutterView(Context context) {
+    public FlutterTextureView(Context context) {
         this(context, null);
     }
 
-    public FlutterView(Context context, AttributeSet attrs) {
+    public FlutterTextureView(Context context, AttributeSet attrs) {
         this(context, attrs, null);
     }
 
-    public FlutterView(Context context, AttributeSet attrs, FlutterNativeView nativeView) {
+    public FlutterTextureView(Context context, AttributeSet attrs, FlutterNativeView nativeView) {
         super(context.getApplicationContext(), attrs);
 
-        Activity activity = getActivity(getContext());
+        Activity activity = getActivity(context);
         if (activity == null) {
             throw new IllegalArgumentException("Bad context");
         }
@@ -186,26 +199,47 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
         setFocusable(true);
         setFocusableInTouchMode(true);
 
-        mSurfaceCallback = new SurfaceHolder.Callback() {
+        SurfaceTextureListener surfaceTextureListener = new SurfaceTextureListener() {
             @Override
-            public void surfaceCreated(SurfaceHolder holder) {
+            public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
                 assertAttached();
-                mNativeView.getFlutterJNI().onSurfaceCreated(holder.getSurface());
+                if (mNativeView != null) {
+                    mNativeView.getFlutterJNI().onSurfaceCreated(getSurface());
+                }
+                for(SurfaceTextureListener listener : mSurfaceTextureListeners) {
+                    listener.onSurfaceTextureAvailable(surfaceTexture, width, height);
+                }
             }
 
             @Override
-            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-                assertAttached();
-                mNativeView.getFlutterJNI().onSurfaceChanged(width, height);
+            public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
+                if (mNativeView != null) {
+                    mNativeView.getFlutterJNI().onSurfaceChanged(width, height);
+                }
+                for(SurfaceTextureListener listener : mSurfaceTextureListeners) {
+                    listener.onSurfaceTextureSizeChanged(surfaceTexture, width, height);
+                }
             }
 
             @Override
-            public void surfaceDestroyed(SurfaceHolder holder) {
-                assertAttached();
-                mNativeView.getFlutterJNI().onSurfaceDestroyed();
+            public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+                if (mNativeView != null) {
+                    mNativeView.getFlutterJNI().onSurfaceDestroyed();
+                }
+                for(SurfaceTextureListener listener : mSurfaceTextureListeners) {
+                    listener.onSurfaceTextureDestroyed(surfaceTexture);
+                }
+                return true;
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+                for(SurfaceTextureListener listener : mSurfaceTextureListeners) {
+                    listener.onSurfaceTextureUpdated(surfaceTexture);
+                }
             }
         };
-        getHolder().addCallback(mSurfaceCallback);
+        setSurfaceTextureListener(surfaceTextureListener);
 
         mActivityLifecycleListeners = new ArrayList<>();
         mFirstFrameListeners = new ArrayList<>();
@@ -259,6 +293,14 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
         }
     }
 
+    public void addSurfaceTextureListener(SurfaceTextureListener listener) {
+        mSurfaceTextureListeners.add(listener);
+    }
+
+    public void removeSurfaceTextureListener(SurfaceTextureListener listener) {
+        mSurfaceTextureListeners.remove(listener);
+    }
+
     /**
      * 跳出到其他Activity时取出ViewportMetrics存下来，用于恢复MediaQuery中的值
      */
@@ -273,7 +315,7 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
         mMetrics.update(viewportMetrics);
         updateViewportMetrics();
     }
-    
+
     private static Activity getActivity(Context context) {
         if (context == null) {
             return null;
@@ -368,26 +410,6 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
         mFirstFrameListeners.remove(listener);
     }
 
-    /**
-     * Updates this to support rendering as a transparent {@link SurfaceView}.
-     *
-     * Sets it on top of its window. The background color still needs to be
-     * controlled from within the Flutter UI itself.
-     */
-    public void enableTransparentBackground() {
-        setZOrderOnTop(true);
-        getHolder().setFormat(PixelFormat.TRANSPARENT);
-    }
-
-    /**
-     * Reverts this back to the {@link SurfaceView} defaults, at the back of its
-     * window and opaque.
-     */
-    public void disableTransparentBackground() {
-        setZOrderOnTop(false);
-        getHolder().setFormat(PixelFormat.OPAQUE);
-    }
-
     public void setInitialRoute(String route) {
         navigationChannel.setInitialRoute(route);
     }
@@ -418,7 +440,7 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
     @SuppressWarnings("deprecation")
     private void sendLocalesToDart(Configuration config) {
         List<Locale> locales = new ArrayList<>();
-        if (Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             LocaleList localeList = config.getLocales();
             int localeCount = localeList.size();
             for (int index = 0; index < localeCount; ++index) {
@@ -445,7 +467,7 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
     public FlutterNativeView detach() {
         if (!isAttached())
             return null;
-        getHolder().removeCallback(mSurfaceCallback);
+        setSurfaceTextureListener(null);
         mNativeView.detachFromFlutterView();
 
         FlutterNativeView view = mNativeView;
@@ -457,7 +479,7 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
         if (!isAttached())
             return;
 
-        getHolder().removeCallback(mSurfaceCallback);
+        setSurfaceTextureListener(null);
 
         mNativeView.destroy();
         mNativeView = null;
@@ -793,11 +815,11 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
 
     // TODO(mattcarroll): Confer with Ian as to why we need this method. Delete if possible, otherwise add comments.
     private void resetWillNotDraw(boolean isAccessibilityEnabled, boolean isTouchExplorationEnabled) {
-        if (!mIsSoftwareRenderingEnabled) {
-            setWillNotDraw(!(isAccessibilityEnabled || isTouchExplorationEnabled));
-        } else {
-            setWillNotDraw(false);
-        }
+        // if (!mIsSoftwareRenderingEnabled) {
+        //     setWillNotDraw(!(isAccessibilityEnabled || isTouchExplorationEnabled));
+        // } else {
+        //     setWillNotDraw(false);
+        // }
     }
 
     @Override
@@ -840,7 +862,7 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
     }
 
     @Override
-    public TextureRegistry.SurfaceTextureEntry createSurfaceTexture() {
+    public SurfaceTextureEntry createSurfaceTexture() {
         final SurfaceTexture surfaceTexture = new SurfaceTexture(0);
         surfaceTexture.detachFromGLContext();
         final SurfaceTextureRegistryEntry entry = new SurfaceTextureRegistryEntry(nextTextureId.getAndIncrement(),
@@ -849,7 +871,7 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
         return entry;
     }
 
-    final class SurfaceTextureRegistryEntry implements TextureRegistry.SurfaceTextureEntry {
+    final class SurfaceTextureRegistryEntry implements SurfaceTextureEntry {
         private final long id;
         private final SurfaceTexture surfaceTexture;
         private boolean released;
