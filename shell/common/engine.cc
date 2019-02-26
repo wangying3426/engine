@@ -423,6 +423,10 @@ void Engine::HandlePlatformMessage(fml::RefPtr<PlatformMessage> message) {
   }
 }
 
+void Engine::AddNextFrameCallback(fml::closure callback) {
+  delegate_.AddNextFrameCallback(callback);
+}
+
 void Engine::UpdateIsolateDescription(const std::string isolate_name,
                                       int64_t isolate_port) {
   delegate_.UpdateIsolateDescription(isolate_name, isolate_port);

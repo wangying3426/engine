@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "flutter/fml/closure.h"
 #include "flutter/fml/time/time_point.h"
 #include "flutter/lib/ui/semantics/semantics_update.h"
 #include "flutter/lib/ui/window/platform_message.h"
@@ -41,6 +42,7 @@ class WindowClient {
   virtual std::string DefaultRouteName() = 0;
   virtual void ScheduleFrame() = 0;
   virtual void Render(Scene* scene) = 0;
+  virtual void AddNextFrameCallback(fml::closure callback) = 0;
   virtual void UpdateSemantics(SemanticsUpdate* update) = 0;
   virtual void HandlePlatformMessage(fml::RefPtr<PlatformMessage> message) = 0;
   virtual FontCollection& GetFontCollection() = 0;

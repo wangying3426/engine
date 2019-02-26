@@ -52,6 +52,8 @@ class Engine final : public RuntimeDelegate {
 
     virtual void UpdateIsolateDescription(const std::string isolate_name,
                                           int64_t isolate_port) = 0;
+
+    virtual void AddNextFrameCallback(fml::closure callback) = 0;
   };
 
   Engine(Delegate& delegate,
@@ -145,6 +147,9 @@ class Engine final : public RuntimeDelegate {
 
   // |RuntimeDelegate|
   void HandlePlatformMessage(fml::RefPtr<PlatformMessage> message) override;
+
+  // |RuntimeDelegate|
+  void AddNextFrameCallback(fml::closure callback) override ;
 
   // |RuntimeDelegate|
   void UpdateIsolateDescription(const std::string isolate_name,

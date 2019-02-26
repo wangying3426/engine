@@ -359,7 +359,17 @@ void Rasterizer::SetNextFrameCallback(fml::closure callback) {
   next_frame_callback_ = callback;
 }
 
+void Rasterizer::AddNextFrameCallback(fml::closure callback) {
+  next_frame_callbacks_.push_back(callback);
+}
+
 void Rasterizer::FireNextFrameCallbackIfPresent() {
+  if (!next_frame_callbacks_.empty()) {
+    for(auto it = next_frame_callbacks_.begin(); it != next_frame_callbacks_.end(); ++it) {
+      (*it)();
+    }
+    next_frame_callbacks_.clear();
+  }
   if (!next_frame_callback_) {
     return;
   }

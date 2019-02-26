@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "flutter/flow/layers/layer_tree.h"
+#include "flutter/fml/closure.h"
 #include "flutter/lib/ui/semantics/custom_accessibility_action.h"
 #include "flutter/lib/ui/semantics/semantics_node.h"
 #include "flutter/lib/ui/text/font_collection.h"
@@ -29,6 +30,8 @@ class RuntimeDelegate {
                                CustomAccessibilityActionUpdates actions) = 0;
 
   virtual void HandlePlatformMessage(fml::RefPtr<PlatformMessage> message) = 0;
+
+  virtual void AddNextFrameCallback(fml::closure callback) = 0;
 
   virtual FontCollection& GetFontCollection() = 0;
 

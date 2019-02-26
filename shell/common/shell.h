@@ -193,6 +193,9 @@ class Shell final : public PlatformView::Delegate,
   void UpdateIsolateDescription(const std::string isolate_name,
                                 int64_t isolate_port) override;
 
+  // |Engine::Delegate|
+  void AddNextFrameCallback(fml::closure callback) override;
+
   // |ServiceProtocol::Handler|
   fml::RefPtr<fml::TaskRunner> GetServiceProtocolHandlerTaskRunner(
       fml::StringView method) const override;

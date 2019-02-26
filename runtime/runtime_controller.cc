@@ -275,6 +275,10 @@ void RuntimeController::Render(Scene* scene) {
   client_.Render(scene->takeLayerTree());
 }
 
+void RuntimeController::AddNextFrameCallback(fml::closure callback) {
+  client_.AddNextFrameCallback(callback);
+}
+
 void RuntimeController::UpdateSemantics(SemanticsUpdate* update) {
   if (window_data_.semantics_enabled) {
     client_.UpdateSemantics(update->takeNodes(), update->takeActions());

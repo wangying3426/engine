@@ -69,6 +69,8 @@ class Rasterizer final : public SnapshotDelegate {
   // the surface on the GPU task runner.
   void SetNextFrameCallback(fml::closure callback);
 
+  void AddNextFrameCallback(fml::closure callback);
+
   flutter::CompositorContext* compositor_context() {
     return compositor_context_.get();
   }
@@ -81,6 +83,7 @@ class Rasterizer final : public SnapshotDelegate {
   std::unique_ptr<flutter::CompositorContext> compositor_context_;
   std::unique_ptr<flutter::LayerTree> last_layer_tree_;
   fml::closure next_frame_callback_;
+  std::vector<fml::closure> next_frame_callbacks_;
   fml::WeakPtrFactory<Rasterizer> weak_factory_;
 
   // |SnapshotDelegate|

@@ -852,6 +852,8 @@ class Window {
   /// Note that this does not rename any child isolates of the root.
   void setIsolateDebugName(String name) native 'Window_setIsolateDebugName';
 
+  void addNextFrameCallback(VoidCallback callback) native 'Window_addNextFrameCallback';
+
   /// Sends a message to a platform-specific plugin.
   ///
   /// The `name` parameter determines which plugin receives the message. The

@@ -876,6 +876,18 @@ void Shell::UpdateIsolateDescription(const std::string isolate_name,
   vm_->GetServiceProtocol()->SetHandlerDescription(this, description);
 }
 
+// |Engine::Delegate|
+void Shell::AddNextFrameCallback(fml::closure callback) {
+  task_runners_.GetGPUTaskRunner()->PostTask(
+      [rasterizer = rasterizer_->GetWeakPtr(), callback = std::move(callback)]() {
+        if (rasterizer) {
+          rasterizer->AddNextFrameCallback([callback = std::move(callback)](){
+            callback();
+          });
+        };
+      });
+}
+
 // |ServiceProtocol::Handler|
 fml::RefPtr<fml::TaskRunner> Shell::GetServiceProtocolHandlerTaskRunner(
     fml::StringView method) const {
