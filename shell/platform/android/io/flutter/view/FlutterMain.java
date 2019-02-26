@@ -11,19 +11,28 @@ import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
+
+import org.json.JSONObject;
+
 import io.flutter.util.PathUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 
 /**
  * A class to intialize the Flutter engine.
+ *
+ * 临时把初始化改成了异步，后续需要完整的重构一下。
  */
 public class FlutterMain {
     private static final String TAG = "FlutterMain";
@@ -37,22 +46,6 @@ public class FlutterMain {
     private static final String AOT_ISOLATE_SNAPSHOT_INSTR_KEY = "isolate-snapshot-instr";
     private static final String FLX_KEY = "flx";
     private static final String FLUTTER_ASSETS_DIR_KEY = "flutter-assets-dir";
-
-    // XML Attribute keys supported in AndroidManifest.xml
-    public static final String PUBLIC_AOT_AOT_SHARED_LIBRARY_PATH =
-        FlutterMain.class.getName() + '.' + AOT_SHARED_LIBRARY_PATH;
-    public static final String PUBLIC_AOT_VM_SNAPSHOT_DATA_KEY =
-        FlutterMain.class.getName() + '.' + AOT_VM_SNAPSHOT_DATA_KEY;
-    public static final String PUBLIC_AOT_VM_SNAPSHOT_INSTR_KEY =
-        FlutterMain.class.getName() + '.' + AOT_VM_SNAPSHOT_INSTR_KEY;
-    public static final String PUBLIC_AOT_ISOLATE_SNAPSHOT_DATA_KEY =
-        FlutterMain.class.getName() + '.' + AOT_ISOLATE_SNAPSHOT_DATA_KEY;
-    public static final String PUBLIC_AOT_ISOLATE_SNAPSHOT_INSTR_KEY =
-        FlutterMain.class.getName() + '.' + AOT_ISOLATE_SNAPSHOT_INSTR_KEY;
-    public static final String PUBLIC_FLX_KEY =
-        FlutterMain.class.getName() + '.' + FLX_KEY;
-    public static final String PUBLIC_FLUTTER_ASSETS_DIR_KEY =
-        FlutterMain.class.getName() + '.' + FLUTTER_ASSETS_DIR_KEY;
 
     // Resource names used for components of the precompiled snapshot.
     private static final String DEFAULT_AOT_SHARED_LIBRARY_PATH= "app.so";
@@ -79,11 +72,11 @@ public class FlutterMain {
     private static String sFlutterAssetsDir = DEFAULT_FLUTTER_ASSETS_DIR;
 
     private static boolean sInitialized = false;
-    private static ResourceUpdater sResourceUpdater;
-    private static ResourceExtractor sResourceExtractor;
-    private static boolean sIsPrecompiledAsBlobs;
-    private static boolean sIsPrecompiledAsSharedLibrary;
-    private static Settings sSettings;
+    private static volatile ResourceUpdater sResourceUpdater;
+    private static volatile ResourceExtractor sResourceExtractor;
+    private static volatile boolean sIsPrecompiledAsBlobs;
+    private static volatile boolean sIsPrecompiledAsSharedLibrary;
+    private static volatile Settings sSettings;
 
     private static final class ImmutableSetBuilder<T> {
         static <T> ImmutableSetBuilder<T> newInstance() {
@@ -111,6 +104,41 @@ public class FlutterMain {
             return Collections.unmodifiableSet(set);
         }
     }
+
+    private static InitTask sInitTask;
+
+    private static class InitTask extends AsyncTask<Void, Void, Void> {
+        private final Context context;
+
+        public InitTask(Context applicationContext) {
+            this.context = applicationContext;
+        }
+
+        @Override
+        protected Void doInBackground(Void... unused) {
+            try {
+                long initStartTimestampMillis = SystemClock.uptimeMillis();
+
+                initAot(context);
+                initResources(context);
+
+                System.loadLibrary("flutter");
+
+                // We record the initialization time using SystemClock because at the start of the
+                // initialization we have not yet loaded the native library to call into dart_tools_api.h.
+                // To get Timeline timestamp of the start of initialization we simply subtract the delta
+                // from the Timeline timestamp at the current moment (the assumption is that the overhead
+                // of the JNI call is negligible).
+                long initTimeMillis = SystemClock.uptimeMillis() - initStartTimestampMillis;
+                nativeRecordStartTimestamp(initTimeMillis);
+
+            } catch (Exception e){
+                throw new RuntimeException("InitTask failed.", e);
+            }
+            return null;
+        }
+    }
+
 
     public static class Settings {
         private String logTag;
@@ -152,30 +180,15 @@ public class FlutterMain {
 
         sSettings = settings;
 
-        long initStartTimestampMillis = SystemClock.uptimeMillis();
-        initConfig(applicationContext);
-        initAot(applicationContext);
-        initResources(applicationContext);
+        sInitTask = new InitTask(applicationContext);
+        sInitTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
-        if (sResourceUpdater == null) {
-            System.loadLibrary("flutter");
-        } else {
-            sResourceExtractor.waitForCompletion();
-            File lib = new File(PathUtils.getDataDirectory(applicationContext), DEFAULT_LIBRARY);
-            if (lib.exists()) {
-                System.load(lib.getAbsolutePath());
-            } else {
-                System.loadLibrary("flutter");
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                new ResourceCleaner(applicationContext).start();
             }
-        }
-
-        // We record the initialization time using SystemClock because at the start of the
-        // initialization we have not yet loaded the native library to call into dart_tools_api.h.
-        // To get Timeline timestamp of the start of initialization we simply subtract the delta
-        // from the Timeline timestamp at the current moment (the assumption is that the overhead
-        // of the JNI call is negligible).
-        long initTimeMillis = SystemClock.uptimeMillis() - initStartTimestampMillis;
-        nativeRecordStartTimestamp(initTimeMillis);
+        }, 5000L);
     }
 
     /**
@@ -187,13 +200,14 @@ public class FlutterMain {
         if (Looper.myLooper() != Looper.getMainLooper()) {
           throw new IllegalStateException("ensureInitializationComplete must be called on the main thread");
         }
-        if (sSettings == null) {
+        if (sSettings == null || sInitTask == null) {
           throw new IllegalStateException("ensureInitializationComplete must be called after startInitialization");
         }
         if (sInitialized) {
             return;
         }
         try {
+            sInitTask.get();
             sResourceExtractor.waitForCompletion();
 
             List<String> shellArgs = new ArrayList<>();
@@ -281,55 +295,8 @@ public class FlutterMain {
     private static native void nativeInit(Context context, String[] args, String bundlePath, String appStoragePath, String engineCachesPath);
     private static native void nativeRecordStartTimestamp(long initTimeMillis);
 
-    /**
-     * Initialize our Flutter config values by obtaining them from the
-     * manifest XML file, falling back to default values.
-     */
-    private static void initConfig(Context applicationContext) {
-        try {
-            Bundle metadata = applicationContext.getPackageManager().getApplicationInfo(
-                applicationContext.getPackageName(), PackageManager.GET_META_DATA).metaData;
-            if (metadata != null) {
-                sAotSharedLibraryPath = metadata.getString(PUBLIC_AOT_AOT_SHARED_LIBRARY_PATH, DEFAULT_AOT_SHARED_LIBRARY_PATH);
-                sAotVmSnapshotData = metadata.getString(PUBLIC_AOT_VM_SNAPSHOT_DATA_KEY, DEFAULT_AOT_VM_SNAPSHOT_DATA);
-                sAotVmSnapshotInstr = metadata.getString(PUBLIC_AOT_VM_SNAPSHOT_INSTR_KEY, DEFAULT_AOT_VM_SNAPSHOT_INSTR);
-                sAotIsolateSnapshotData = metadata.getString(PUBLIC_AOT_ISOLATE_SNAPSHOT_DATA_KEY, DEFAULT_AOT_ISOLATE_SNAPSHOT_DATA);
-                sAotIsolateSnapshotInstr = metadata.getString(PUBLIC_AOT_ISOLATE_SNAPSHOT_INSTR_KEY, DEFAULT_AOT_ISOLATE_SNAPSHOT_INSTR);
-                sFlx = metadata.getString(PUBLIC_FLX_KEY, DEFAULT_FLX);
-                sFlutterAssetsDir = metadata.getString(PUBLIC_FLUTTER_ASSETS_DIR_KEY, DEFAULT_FLUTTER_ASSETS_DIR);
-            }
-        } catch (PackageManager.NameNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private static void initResources(Context applicationContext) {
         Context context = applicationContext;
-        new ResourceCleaner(context).start();
-
-        Bundle metaData = null;
-        try {
-            metaData = context.getPackageManager().getApplicationInfo(
-                    context.getPackageName(), PackageManager.GET_META_DATA).metaData;
-
-        } catch (PackageManager.NameNotFoundException e) {
-            Log.e(TAG, "Unable to read application info", e);
-        }
-
-        if (metaData != null && metaData.getBoolean("DynamicPatching")) {
-            sResourceUpdater = new ResourceUpdater(context);
-            // Also checking for ON_RESUME here since it's more efficient than waiting for actual
-            // onResume. Even though actual onResume is imminent when the app has just restarted,
-            // it's better to start downloading now, in parallel with the rest of initialization,
-            // and avoid a second application restart a bit later when actual onResume happens.
-            if (sResourceUpdater.getDownloadMode() == ResourceUpdater.DownloadMode.ON_RESTART ||
-                sResourceUpdater.getDownloadMode() == ResourceUpdater.DownloadMode.ON_RESUME) {
-                sResourceUpdater.startUpdateDownloadOnce();
-                if (sResourceUpdater.getInstallMode() == ResourceUpdater.InstallMode.IMMEDIATE) {
-                    sResourceUpdater.waitForDownloadCompletion();
-                }
-            }
-        }
 
         sResourceExtractor = new ResourceExtractor(context);
 
@@ -362,11 +329,7 @@ public class FlutterMain {
     }
 
     public static void onResume(Context context) {
-        if (sResourceUpdater != null) {
-            if (sResourceUpdater.getDownloadMode() == ResourceUpdater.DownloadMode.ON_RESUME) {
-                sResourceUpdater.startUpdateDownloadOnce();
-            }
-        }
+
     }
 
     /**
