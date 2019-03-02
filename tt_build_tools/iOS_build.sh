@@ -28,7 +28,7 @@ for mode in 'debug' 'profile' 'release'
 		iOSSimDir=out/ios_debug_sim
 		cacheDir=out/tt_ios_${mode}
 
-		rm -rf $cacheDir
+		[ -d $cacheDir ] && rm -rf $cacheDir
 		mkdir $cacheDir
 
 #		./flutter/tools/gn --runtime-mode=$mode
@@ -47,7 +47,12 @@ for mode in 'debug' 'profile' 'release'
 
 		if [ "$mode" == "release" ]
 		then
-			xcrun strip -x -S $cacheDir/Flutter
+			cd $cacheDir
+			xcrun dsymutil -o Flutter.dSYM Flutter
+			zip -rq Flutter.dSYM.zip Flutter.dSYM
+			[ -e Flutter.dSYM ] && rm -rf Flutter.dSYM
+			xcrun strip -x -S Flutter
+			cd -
 		fi
 
 		cp -r $iOSArm64Dir/Flutter.framework $cacheDir/Flutter.framework
@@ -64,12 +69,12 @@ for mode in 'debug' 'profile' 'release'
 		zip -rq Flutter.framework.zip Flutter Headers icudtl.dat Info.plist Modules
 		cd ..
 		mv Flutter.framework/Flutter.framework.zip Flutter.framework.zip
-		rm -rf Flutter.framework
+		[ -d Flutter.framework ] && rm -rf Flutter.framework
 		zip -rq artifacts.zip Flutter.framework.zip gen_snapshot Flutter.podspec snapshot.dart
-		rm -rf Flutter.framework.zip
-		rm -rf gen_snapshot
-		rm -rf Flutter.podspec
-		rm -rf snapshot.dart
+		[ -e Flutter.framework.zip ] && rm -rf Flutter.framework.zip
+		[ -e gen_snapshot ] && rm -rf gen_snapshot
+		[ -e Flutter.podspec ] && rm -rf Flutter.podspec
+		[ -e snapshot.dart ] && rm -rf snapshot.dart
 
 		cd ..
 		cd ..
@@ -86,4 +91,9 @@ for mode in 'debug' 'profile' 'release'
 		fi
 
 		node ./flutter/tt_build_tools/tosUpload.js $cacheDir/artifacts.zip flutter/framework/$tosDir/$modeDir/artifacts.zip
+
+		if [ "$mode" == "release" ]
+		then
+			node ./flutter/tt_build_tools/tosUpload.js $cacheDir/Flutter.dSYM.zip flutter/framework/$tosDir/$modeDir/Flutter.dSYM.zip
+		fi
 	done
