@@ -5,6 +5,7 @@
 package io.flutter.plugin.platform;
 
 import android.annotation.TargetApi;
+import android.app.Activity;
 import android.content.Context;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
@@ -76,7 +77,9 @@ class VirtualDisplayController {
         mDensityDpi = context.getResources().getDisplayMetrics().densityDpi;
         mPresentation = new SingleViewPresentation(
                 context, mVirtualDisplay.getDisplay(), viewFactory, accessibilityEventsDelegate, viewId, createParams);
-        mPresentation.show();
+        if (mContext instanceof Activity && !((Activity) mContext).isFinishing()) {
+            mPresentation.show();
+        }
     }
 
     public void resize(final int width, final int height, final Runnable onNewSizeFrameAvailable) {
@@ -126,7 +129,9 @@ class VirtualDisplayController {
         });
 
         mPresentation = new SingleViewPresentation(mContext, mVirtualDisplay.getDisplay(), mAccessibilityEventsDelegate, presentationState);
-        mPresentation.show();
+        if (mContext instanceof Activity && !((Activity) mContext).isFinishing()) {
+            mPresentation.show();
+        }
     }
 
     public void dispose() {
