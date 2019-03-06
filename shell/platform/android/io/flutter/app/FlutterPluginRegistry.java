@@ -85,8 +85,8 @@ public class FlutterPluginRegistry
 
     public void detach() {
         mPlatformViewsController.detach();
-        mPlatformViewsController.onFlutterViewDestroyed();
-        mFlutterView = null;
+        // mPlatformViewsController.onFlutterViewDestroyed();
+        // mFlutterView = null;
         mActivity = null;
     }
 
