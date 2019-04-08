@@ -158,9 +158,10 @@ void AndroidShellHolder::Launch(RunConfiguration config) {
   }
 
   shell_->GetTaskRunners().GetUITaskRunner()->PostTask(
-      fml::MakeCopyable([engine = shell_->GetEngine(),  //
-                         config = std::move(config)     //
+      fml::MakeCopyable([shell = shell_.get(),       //
+                         config = std::move(config)  //
   ]() mutable {
+        auto engine = shell->GetEngine();
         FML_LOG(INFO) << "Attempting to launch engine configuration...";
         if (!engine ||
             engine->Run(std::move(config)) == Engine::RunStatus::Failure) {
@@ -179,7 +180,8 @@ void AndroidShellHolder::SetViewportMetrics(
   }
 
   shell_->GetTaskRunners().GetUITaskRunner()->PostTask(
-      [engine = shell_->GetEngine(), metrics]() {
+      [shell = shell_.get(), metrics]() {
+        auto engine = shell->GetEngine();
         if (engine) {
           engine->SetViewportMetrics(metrics);
         }
@@ -195,9 +197,10 @@ void AndroidShellHolder::DispatchPointerDataPacket(
   TRACE_EVENT0("flutter", "AndroidShellHolder::DispatchPointerDataPacket");
   TRACE_FLOW_BEGIN("flutter", "PointerEvent", next_pointer_flow_id_);
 
-  shell_->GetTaskRunners().GetUITaskRunner()->PostTask(fml::MakeCopyable(
-      [engine = shell_->GetEngine(), packet = std::move(packet),
-       flow_id = next_pointer_flow_id_] {
+  shell_->GetTaskRunners().GetUITaskRunner()->PostTask(
+      fml::MakeCopyable([shell = shell_.get(), packet = std::move(packet),
+                         flow_id = next_pointer_flow_id_] {
+        auto engine = shell->GetEngine();
         if (engine) {
           engine->DispatchPointerDataPacket(*packet, flow_id);
         }
