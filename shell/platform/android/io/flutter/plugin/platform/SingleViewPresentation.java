@@ -11,6 +11,7 @@ import android.content.ContextWrapper;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.*;
 import android.view.accessibility.AccessibilityEvent;
@@ -149,6 +150,10 @@ class SingleViewPresentation extends Presentation {
         mRootView.addView(mContainer);
         mRootView.addView(mState.mFakeWindowRootView);
         setContentView(mRootView);
+        // 防止参数不一致导致PlatformView展示不出来
+        DisplayMetrics metrics = new DisplayMetrics();
+        getDisplay().getMetrics(metrics);
+        getResources().getDisplayMetrics().setTo(metrics);
     }
 
     public PresentationState detachState() {
