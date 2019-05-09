@@ -118,14 +118,30 @@ void FlutterViewOnPreEngineRestart(JNIEnv* env, jobject obj) {
   FML_CHECK(CheckException(env));
 }
 
+static jmethodID g_is_released_method = nullptr;
+bool SurfaceTextureIsReleased(JNIEnv* env, jobject obj) {
+  if (g_is_released_method == nullptr) {
+    return false;
+  }
+  jboolean is_released = env->CallBooleanMethod(obj, g_is_released_method);
+  FML_CHECK(CheckException(env));
+  return is_released;
+}
+
 static jmethodID g_attach_to_gl_context_method = nullptr;
 void SurfaceTextureAttachToGLContext(JNIEnv* env, jobject obj, jint textureId) {
+  if (SurfaceTextureIsReleased(env, obj)) {
+    return;
+  }
   env->CallVoidMethod(obj, g_attach_to_gl_context_method, textureId);
   FML_CHECK(CheckException(env));
 }
 
 static jmethodID g_update_tex_image_method = nullptr;
 void SurfaceTextureUpdateTexImage(JNIEnv* env, jobject obj) {
+  if (SurfaceTextureIsReleased(env, obj)) {
+    return;
+  }
   env->CallVoidMethod(obj, g_update_tex_image_method);
   FML_CHECK(CheckException(env));
 }
@@ -759,6 +775,9 @@ bool PlatformViewAndroid::Register(JNIEnv* env) {
     FML_LOG(ERROR) << "Failed to RegisterNatives with FlutterCallbackInfo";
     return false;
   }
+
+  g_is_released_method =
+      env->GetMethodID(g_surface_texture_class->obj(), "isReleased", "()Z");
 
   g_attach_to_gl_context_method = env->GetMethodID(
       g_surface_texture_class->obj(), "attachToGLContext", "(I)V");
