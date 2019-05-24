@@ -38,7 +38,7 @@ if [ -d "src/" ];then
 fi
 
 if [ ! -d "src/flutter" ];then
-    gclient sync
+    gclient sync -D -f
 fi
 
 cd src/flutter
@@ -46,12 +46,8 @@ git fetch
 git reset --hard origin/$BRANCH
 git clean -fd
 
-gclient sync
+gclient sync -D -f
 
 cd tt_build_tools
-if [ $MODE == 'fast' ]; then
-    bash android_build_fast.sh $JCOUNT
-else
-    bash android_build.sh $JCOUNT
-fi
+bash android_build.sh $JCOUNT $MODE
 bash iOS_build.sh $JCOUNT

@@ -7,7 +7,17 @@ then
     jcount=4
 fi
 
-tosDir=$2
+isFast=$2
+
+if [ $isFast = 'fast' ]; then
+    platforms=('arm')
+    dynamics=('normal')
+else
+    platforms=('arm' 'x64' 'x86' 'arm64')
+    dynamics=('normal' 'dynamic')
+fi
+
+tosDir=$3
 if [ ! $tosDir ]
 then 
 	tosDir=$(git rev-parse HEAD)
@@ -37,15 +47,30 @@ cd ..
 node ./flutter/tt_build_tools/tosUpload.js $cacheDir/flutter_patched_sdk.zip flutter/framework/$tosDir/flutter_patched_sdk.zip
 echo uploaded flutter/framework/$tosDir/flutter_patched_sdk.zip
 
+hostDir=out/host_release
+./flutter/tools/gn --runtime-mode=release
+ninja -C $hostDir -j $jcount
+
+# flutter_patched_sdk.zip
+rm -f $cacheDir/flutter_patched_sdk_product.zip
+rm -rf $cacheDir/flutter_patched_sdk_product
+cp -r $hostDir/flutter_patched_sdk $cacheDir/flutter_patched_sdk_product
+cd $cacheDir
+zip -rq flutter_patched_sdk_product.zip flutter_patched_sdk_product
+cd ..
+cd ..
+node ./flutter/tt_build_tools/tosUpload.js $cacheDir/flutter_patched_sdk_product.zip flutter/framework/$tosDir/flutter_patched_sdk_product.zip
+echo uploaded flutter/framework/$tosDir/flutter_patched_sdk_product.zip
+
 for mode in 'debug' 'profile' 'release'; do
-    for platform in 'arm' 'x64' 'x86' 'arm64'; do
+    for platform in ${platforms[@]}; do
         # x64和x86只打debug
         if [ $mode != 'debug' ]; then
             if [ $platform = 'x64' -o $platform = 'x86' ]; then
                 continue
             fi
         fi
-        for dynamic in 'normal' 'dynamic'; do
+        for dynamic in ${dynamics[@]}; do
             modeDir=android-$platform
             
             # arm不带后缀
@@ -104,8 +129,8 @@ done
 modeDir=darwin-x64
 rm -rf $cacheDir/$modeDir
 mkdir $cacheDir/$modeDir
-cp out/android_dynamic_release/gen/flutter/lib/snapshot/isolate_snapshot.bin $cacheDir/$modeDir/product_isolate_snapshot.bin
-cp out/android_dynamic_release/gen/flutter/lib/snapshot/vm_isolate_snapshot.bin $cacheDir/$modeDir/product_vm_isolate_snapshot.bin
+cp out/android_release/gen/flutter/lib/snapshot/isolate_snapshot.bin $cacheDir/$modeDir/product_isolate_snapshot.bin
+cp out/android_release/gen/flutter/lib/snapshot/vm_isolate_snapshot.bin $cacheDir/$modeDir/product_vm_isolate_snapshot.bin
 zip -rjq $cacheDir/$modeDir/artifacts.zip $hostDir/flutter_tester $hostDir/gen/frontend_server.dart.snapshot \
 out/android_release/flutter_shell_assets/icudtl.dat out/android_debug/gen/flutter/lib/snapshot/isolate_snapshot.bin \
 out/android_debug/gen/flutter/lib/snapshot/vm_isolate_snapshot.bin $cacheDir/$modeDir/product_isolate_snapshot.bin \
