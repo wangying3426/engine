@@ -131,7 +131,7 @@ rm -rf $cacheDir/$modeDir
 mkdir $cacheDir/$modeDir
 cp out/android_release/gen/flutter/lib/snapshot/isolate_snapshot.bin $cacheDir/$modeDir/product_isolate_snapshot.bin
 cp out/android_release/gen/flutter/lib/snapshot/vm_isolate_snapshot.bin $cacheDir/$modeDir/product_vm_isolate_snapshot.bin
-zip -rjq $cacheDir/$modeDir/artifacts.zip $hostDir/flutter_tester $hostDir/gen/frontend_server.dart.snapshot \
+zip -rjq $cacheDir/$modeDir/artifacts.zip out/host_debug/flutter_tester out/host_debug/gen/frontend_server.dart.snapshot \
 out/android_release/flutter_shell_assets/icudtl.dat out/android_debug/gen/flutter/lib/snapshot/isolate_snapshot.bin \
 out/android_debug/gen/flutter/lib/snapshot/vm_isolate_snapshot.bin $cacheDir/$modeDir/product_isolate_snapshot.bin \
 $cacheDir/$modeDir/product_vm_isolate_snapshot.bin
@@ -140,7 +140,7 @@ echo uploaded $cacheDir/$modeDir/artifacts.zip flutter/framework/$tosDir/$modeDi
 
 rm -rf $cacheDir/pkg
 mkdir $cacheDir/pkg
-cp -rf $hostDir/gen/dart-pkg/sky_engine $cacheDir/pkg/sky_engine
+cp -rf out/host_release/gen/dart-pkg/sky_engine $cacheDir/pkg/sky_engine
 rm -rf $cacheDir/pkg/sky_engine/packages
 cd $cacheDir/pkg
 zip -rq ../../../$cacheDir/pkg/sky_engine.zip sky_engine
