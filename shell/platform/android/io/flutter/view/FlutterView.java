@@ -167,7 +167,7 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
     public FlutterView(Context context, AttributeSet attrs, FlutterNativeView nativeView) {
         super(context.getApplicationContext(), attrs);
 
-        Activity activity = getActivity(getContext());
+        Activity activity = getActivity(context);
         if (activity == null) {
             throw new IllegalArgumentException("Bad context");
         }
