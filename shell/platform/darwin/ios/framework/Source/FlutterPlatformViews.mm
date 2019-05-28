@@ -355,20 +355,15 @@ void FlutterPlatformViewsController::EnsureGLOverlayInitialized(
 // as well. So during this phase as well the ForwardingGestureRecognizer dispatched the events
 // directly to the FlutterView.
 @interface ForwardingGestureRecognizer : UIGestureRecognizer <UIGestureRecognizerDelegate>
-- (instancetype)initWithTarget:(id)target
-                   flutterView:(UIView*)flutterView
-        gestureRefactorEnabled:(BOOL)gestureRefactorEnabled;
+- (instancetype)initWithTarget:(id)target flutterView:(UIView*)flutterView;
 @end
 
 @implementation FlutterTouchInterceptingView {
   fml::scoped_nsobject<DelayingGestureRecognizer> _delayingRecognizer;
-  BOOL _gestureRefactorEnabled;
 }
 - (instancetype)initWithEmbeddedView:(UIView*)embeddedView flutterView:(UIView*)flutterView {
   self = [super initWithFrame:embeddedView.frame];
   if (self) {
-    _gestureRefactorEnabled = [[NSUserDefaults standardUserDefaults]
-        boolForKey:@"flutter_enable_platform_view_gesture_repair"];
     self.multipleTouchEnabled = YES;
     embeddedView.autoresizingMask =
         (UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight);
@@ -377,8 +372,7 @@ void FlutterPlatformViewsController::EnsureGLOverlayInitialized(
 
     ForwardingGestureRecognizer* forwardingRecognizer =
         [[[ForwardingGestureRecognizer alloc] initWithTarget:self
-                                                 flutterView:flutterView
-                                      gestureRefactorEnabled:_gestureRefactorEnabled] autorelease];
+                                                 flutterView:flutterView] autorelease];
 
     _delayingRecognizer.reset([[DelayingGestureRecognizer alloc]
               initWithTarget:self
@@ -403,27 +397,15 @@ void FlutterPlatformViewsController::EnsureGLOverlayInitialized(
 // view. Make the touch event method not call super will not pass the touches up to the parent view.
 // Hence we overide the touch event methods and do nothing.
 - (void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-  if (!_gestureRefactorEnabled) {
-    [super touchesBegan:touches withEvent:event];
-  }
 }
 
 - (void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-  if (!_gestureRefactorEnabled) {
-    [super touchesMoved:touches withEvent:event];
-  }
 }
 
 - (void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-  if (!_gestureRefactorEnabled) {
-    [super touchesCancelled:touches withEvent:event];
-  }
 }
 
 - (void)touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event {
-  if (!_gestureRefactorEnabled) {
-    [super touchesEnded:touches withEvent:event];
-  }
 }
 
 @end
@@ -470,15 +452,11 @@ void FlutterPlatformViewsController::EnsureGLOverlayInitialized(
   UIView* _flutterView;
   // Counting the pointers that has started in one touch sequence.
   NSInteger _currentTouchPointersCount;
-  BOOL _gestureRefactorEnabled;
 }
 
-- (instancetype)initWithTarget:(id)target
-                   flutterView:(UIView*)flutterView
-        gestureRefactorEnabled:(BOOL)gestureRefactorEnabled {
+- (instancetype)initWithTarget:(id)target flutterView:(UIView*)flutterView {
   self = [super initWithTarget:target action:nil];
   if (self) {
-    _gestureRefactorEnabled = gestureRefactorEnabled;
     self.delegate = self;
     _flutterView = flutterView;
     _currentTouchPointersCount = 0;
@@ -502,7 +480,7 @@ void FlutterPlatformViewsController::EnsureGLOverlayInitialized(
   // fingers stop touching the screen at different time. So one touchesEnded method triggering does
   // not necessarially mean the touch sequence has ended. We Only set the state to
   // UIGestureRecognizerStateFailed when all the touches in the current touch sequence is ended.
-  if (_currentTouchPointersCount == 0 || !_gestureRefactorEnabled) {
+  if (_currentTouchPointersCount == 0) {
     self.state = UIGestureRecognizerStateFailed;
   }
 }
