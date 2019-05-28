@@ -61,7 +61,7 @@ void IOSExternalTextureGL::Paint(SkCanvas& canvas,
                                  CVOpenGLESTextureGetName(texture_ref_), GL_RGBA8_OES};
   GrBackendTexture backendTexture(bounds.width(), bounds.height(), GrMipMapped::kNo, textureInfo);
   sk_sp<SkImage> image =
-      SkImage::MakeFromTexture(context == nullptr ? canvas.getGrContext() : context, backendTexture,
+      SkImage::MakeFromTexture(context, backendTexture,
                                kTopLeft_GrSurfaceOrigin, kRGBA_8888_SkColorType,
                                kPremul_SkAlphaType, nullptr);
   FML_DCHECK(image) << "Failed to create SkImage from Texture.";
