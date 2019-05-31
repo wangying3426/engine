@@ -114,9 +114,10 @@ class SingleViewPresentation extends Presentation {
             Context outerContext,
             Display display,
             AccessibilityEventsDelegate accessibilityEventsDelegate,
-            PresentationState state
+            PresentationState state,
+            int themeId
     ) {
-        super(outerContext, display);
+        super(outerContext, display, themeId);
         mAccessibilityEventsDelegate = accessibilityEventsDelegate;
         mViewFactory = null;
         mState = state;

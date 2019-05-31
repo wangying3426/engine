@@ -57,6 +57,7 @@ class VirtualDisplayController {
     private VirtualDisplay mVirtualDisplay;
     private SingleViewPresentation mPresentation;
     private Surface mSurface;
+    private int mPresentationThemeId;
 
 
     private VirtualDisplayController(
@@ -75,6 +76,7 @@ class VirtualDisplayController {
         mSurface = surface;
         mVirtualDisplay = virtualDisplay;
         mDensityDpi = context.getResources().getDisplayMetrics().densityDpi;
+        mPresentationThemeId = viewFactory.getPresentationTheme();
         mPresentation = new SingleViewPresentation(
                 context, mVirtualDisplay.getDisplay(), viewFactory, accessibilityEventsDelegate, viewId, createParams);
         if (mContext instanceof Activity && !((Activity) mContext).isFinishing()) {
@@ -128,7 +130,7 @@ class VirtualDisplayController {
             public void onViewDetachedFromWindow(View v) {}
         });
 
-        mPresentation = new SingleViewPresentation(mContext, mVirtualDisplay.getDisplay(), mAccessibilityEventsDelegate, presentationState);
+        mPresentation = new SingleViewPresentation(mContext, mVirtualDisplay.getDisplay(), mAccessibilityEventsDelegate, presentationState, mPresentationThemeId);
         if (mContext instanceof Activity && !((Activity) mContext).isFinishing()) {
             mPresentation.show();
         }
@@ -146,7 +148,10 @@ class VirtualDisplayController {
         if (mPresentation == null)
             return null;
         PlatformView platformView = mPresentation.getView();
-        return platformView.getView();
+        if (platformView != null) {
+            return platformView.getView();
+        }
+        return null;
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN)

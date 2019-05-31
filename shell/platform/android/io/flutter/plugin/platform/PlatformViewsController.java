@@ -93,7 +93,8 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler,
      * not maintain references to the texture registry, context, and messenger passed to the previous attach call.
      */
     public void detach() {
-        mMessenger.setMessageHandler(CHANNEL_NAME, null);
+        // 使PlatformView在detach情况下依然可以dispose
+        // mMessenger.setMessageHandler(CHANNEL_NAME, null);
         mMessenger = null;
         mContext = null;
         mTextureRegistry = null;
@@ -135,6 +136,10 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler,
         if (Build.VERSION.SDK_INT < MINIMAL_SDK) {
             Log.e(TAG, "Trying to use platform views with API " + Build.VERSION.SDK_INT
                     + ", required API level is: " + MINIMAL_SDK);
+            return;
+        }
+        if (mContext == null && !call.method.equals("dispose")) {
+            result.error("error", "Context is null when call " + call.method, null);
             return;
         }
         switch (call.method) {
@@ -221,7 +226,10 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler,
         }
 
         vdControllers.put(id, vdController);
-        vdController.getView().setLayoutDirection(direction);
+        View view = vdController.getView();
+        if (view != null) {
+            view.setLayoutDirection(direction);
+        }
 
         // TODO(amirh): copy accessibility nodes to the FlutterView's accessibility tree.
 
