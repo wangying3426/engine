@@ -138,6 +138,7 @@ class VirtualDisplayController {
 
     public void dispose() {
         PlatformView view = mPresentation.getView();
+        mPresentation.cancel();
         mPresentation.detachState();
         view.dispose();
         mVirtualDisplay.release();
