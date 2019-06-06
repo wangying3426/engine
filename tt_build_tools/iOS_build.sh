@@ -1,3 +1,12 @@
+#!/bin/bash
+
+upload_dsym_to_slardar() {
+	echo "Start upload dSYM to HMD server"
+	STATUS=$(curl "http://symbolicate.byted.org/slardar_ios_upload" -F "file=@${1}" -F "aid=13" -H "Content-Type: multipart/form-data" -w %{http_code} -v)
+	echo "HMD server response: ${STATUS}"
+}
+
+dSYMInfoPlistPath=$(pwd)"/Info.plist"
 cd ..
 
 jcount=$1
@@ -27,6 +36,7 @@ for mode in 'debug' 'profile' 'release'
 		iOSArmV7Dir=out/ios_${mode}_arm
 		iOSSimDir=out/ios_debug_sim
 		cacheDir=out/tt_ios_${mode}
+		dSYMInfoPlist=flutter/tt_build_tools/Info.plist
 
 		[ -d $cacheDir ] && rm -rf $cacheDir
 		mkdir $cacheDir
@@ -47,8 +57,10 @@ for mode in 'debug' 'profile' 'release'
 
 		if [ "$mode" == "release" ]
 		then
+			echo "Generate dSYM"
 			cd $cacheDir
 			xcrun dsymutil -o Flutter.dSYM Flutter
+			cp ${dSYMInfoPlistPath} Flutter.dSYM/Contents/Info.plist
 			zip -rq Flutter.dSYM.zip Flutter.dSYM
 			[ -e Flutter.dSYM ] && rm -rf Flutter.dSYM
 			xcrun strip -x -S Flutter
@@ -95,5 +107,7 @@ for mode in 'debug' 'profile' 'release'
 		if [ "$mode" == "release" ]
 		then
 			node ./flutter/tt_build_tools/tosUpload.js $cacheDir/Flutter.dSYM.zip flutter/framework/$tosDir/$modeDir/Flutter.dSYM.zip
+            echo uploaded flutter/framework/$tosDir/$modeDir/Flutter.dSYM.zip
+			upload_dsym_to_slardar "${cacheDir}/Flutter.dSYM.zip"
 		fi
 	done
