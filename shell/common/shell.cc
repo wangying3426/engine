@@ -378,7 +378,10 @@ fml::WeakPtr<Engine> Shell::GetEngine() {
     ui_latch_.Wait();
   }
   FML_DCHECK(is_setup_);
-  return engine_->GetWeakPtr();
+  if (engine_) {
+    return engine_->GetWeakPtr();
+  }
+  return {};
 }
 
 fml::WeakPtr<PlatformView> Shell::GetPlatformView() {

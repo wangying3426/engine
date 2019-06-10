@@ -91,7 +91,7 @@ void AddNextFrameCallback(Dart_Handle callback) {
       [callback = std::make_unique<tonic::DartPersistentValue>(
           tonic::DartState::Current(), callback),
        ui_task_runner = dart_state->GetTaskRunners().GetUITaskRunner()]() mutable {
-        ui_task_runner->PostTask(fml::MakeCopyable([callback = std::move(callback)](){
+        ui_task_runner->PostTask(fml::MakeCopyable([callback = std::move(callback)]() mutable {
           std::shared_ptr<tonic::DartState> dart_state_ = callback->dart_state().lock();
           if (!dart_state_) {
             return;
