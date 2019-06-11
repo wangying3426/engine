@@ -134,6 +134,8 @@ void SurfaceTextureAttachToGLContext(JNIEnv* env, jobject obj, jint textureId) {
     return;
   }
   env->CallVoidMethod(obj, g_attach_to_gl_context_method, textureId);
+  // 暂时清理异常防止crash
+  fml::jni::ClearException(env);
   FML_CHECK(CheckException(env));
 }
 
@@ -143,6 +145,8 @@ void SurfaceTextureUpdateTexImage(JNIEnv* env, jobject obj) {
     return;
   }
   env->CallVoidMethod(obj, g_update_tex_image_method);
+  // 暂时清理异常防止crash
+  fml::jni::ClearException(env);
   FML_CHECK(CheckException(env));
 }
 
@@ -151,12 +155,16 @@ void SurfaceTextureGetTransformMatrix(JNIEnv* env,
                                       jobject obj,
                                       jfloatArray result) {
   env->CallVoidMethod(obj, g_get_transform_matrix_method, result);
+  // 暂时清理异常防止crash
+  fml::jni::ClearException(env);
   FML_CHECK(CheckException(env));
 }
 
 static jmethodID g_detach_from_gl_context_method = nullptr;
 void SurfaceTextureDetachFromGLContext(JNIEnv* env, jobject obj) {
   env->CallVoidMethod(obj, g_detach_from_gl_context_method);
+  // 暂时清理异常防止crash
+  fml::jni::ClearException(env);
   FML_CHECK(CheckException(env));
 }
 
