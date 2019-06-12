@@ -138,7 +138,10 @@ class VirtualDisplayController {
 
     public void dispose() {
         PlatformView view = mPresentation.getView();
-        mPresentation.cancel();
+        // Activity已销毁后调用该方法会抛出异常
+        try {
+            mPresentation.cancel();
+        } catch (Exception ignore) {}
         mPresentation.detachState();
         view.dispose();
         mVirtualDisplay.release();
