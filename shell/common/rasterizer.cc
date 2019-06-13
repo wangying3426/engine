@@ -366,7 +366,7 @@ void Rasterizer::AddNextFrameCallback(fml::closure callback) {
 void Rasterizer::FireNextFrameCallbackIfPresent() {
   if (!next_frame_callbacks_.empty()) {
     for(auto it = next_frame_callbacks_.begin(); it != next_frame_callbacks_.end(); ++it) {
-      (*it)();
+      task_runners_.GetUITaskRunner()->PostTask(*it);
     }
     next_frame_callbacks_.clear();
   }

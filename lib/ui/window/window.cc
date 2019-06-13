@@ -87,19 +87,15 @@ void AddNextFrameCallback(Dart_Handle callback) {
   if (!dart_state->window()) {
     return;
   }
-  dart_state->window()->client()->AddNextFrameCallback(fml::MakeCopyable(
-      [callback = std::make_unique<tonic::DartPersistentValue>(
-          tonic::DartState::Current(), callback),
-       ui_task_runner = dart_state->GetTaskRunners().GetUITaskRunner()]() mutable {
-        ui_task_runner->PostTask(fml::MakeCopyable([callback = std::move(callback)]() mutable {
-          std::shared_ptr<tonic::DartState> dart_state_ = callback->dart_state().lock();
-          if (!dart_state_) {
-            return;
-          }
-          tonic::DartState::Scope scope(dart_state_);
-          tonic::DartInvokeVoid(callback->value());
-        }));
-  }));
+  dart_state->window()->client()->AddNextFrameCallback(
+      [handle = std::make_shared<tonic::DartPersistentValue>(dart_state, callback)]() mutable {
+        std::shared_ptr<tonic::DartState> dart_state_ = handle->dart_state().lock();
+        if (!dart_state_) {
+          return;
+        }
+        tonic::DartState::Scope scope(dart_state_);
+        tonic::DartInvokeVoid(handle->value());
+      });
 }
 
 void _AddNextFrameCallback(Dart_NativeArguments args) {
