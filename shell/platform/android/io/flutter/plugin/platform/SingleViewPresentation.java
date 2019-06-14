@@ -158,8 +158,12 @@ class SingleViewPresentation extends Presentation {
     }
 
     public PresentationState detachState() {
-        mContainer.removeAllViews();
-        mRootView.removeAllViews();
+        if (mContainer != null) {
+            mContainer.removeAllViews();
+        }
+        if (mRootView != null) {
+            mRootView.removeAllViews();
+        }
         return mState;
     }
 
