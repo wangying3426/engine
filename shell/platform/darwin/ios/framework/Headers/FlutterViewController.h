@@ -79,7 +79,6 @@ FLUTTER_EXPORT
  */
 - (void)setFlutterViewDidRenderCallback:(void (^)(void))callback;
 
-
 /**
  Registers a callback that will be invoked the next frame has been rendered.
  The callback will be fired only once.
@@ -157,6 +156,12 @@ FLUTTER_EXPORT
  * @return `YES` if successful, `NO` otherwise.
  */
 - (BOOL)loadDefaultSplashScreenView;
+
+/**
+ * Request a frame when flutter view is in background.
+ * The request will be ignore if flutter view is not in background.
+ */
+- (void)scheduleBackgroundFrame;
 
 /**
  * Controls whether the created view will be opaque or not.

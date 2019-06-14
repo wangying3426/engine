@@ -397,6 +397,10 @@ void Engine::ScheduleFrame(bool regenerate_layer_tree) {
   animator_->RequestFrame(regenerate_layer_tree);
 }
 
+void Engine::ScheduleBackgroundFrame() {
+  animator_->RequestBackgroundFrame();
+}
+
 void Engine::Render(std::unique_ptr<flutter::LayerTree> layer_tree) {
   if (!layer_tree)
     return;

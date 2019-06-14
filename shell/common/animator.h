@@ -42,6 +42,8 @@ class Animator final {
 
   void RequestFrame(bool regenerate_layer_tree = true);
 
+  void RequestBackgroundFrame();
+
   void Render(std::unique_ptr<flutter::LayerTree> layer_tree);
 
   void Start();
@@ -64,6 +66,7 @@ class Animator final {
   void DrawLastLayerTree();
 
   void AwaitVSync();
+  void AwaitVSyncForBackground();
 
   const char* FrameParity();
 
