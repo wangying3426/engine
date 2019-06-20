@@ -105,6 +105,16 @@ public class FlutterMain {
         }
     }
 
+    interface SoLoader {
+        void loadLibrary(Context context, String libraryName);
+    }
+
+    private static SoLoader sSoLoader;
+
+    public static void setSoLoader(SoLoader soLoader) {
+        sSoLoader = soLoader;
+    }
+
     private static InitTask sInitTask;
 
     private static class InitTask extends AsyncTask<Void, Void, Void> {
@@ -122,7 +132,11 @@ public class FlutterMain {
                 initAot(context);
                 initResources(context);
 
-                System.loadLibrary("flutter");
+                if (sSoLoader != null) {
+                    sSoLoader.loadLibrary(context, "flutter");
+                } else {
+                    System.loadLibrary("flutter");
+                }
 
                 // We record the initialization time using SystemClock because at the start of the
                 // initialization we have not yet loaded the native library to call into dart_tools_api.h.
