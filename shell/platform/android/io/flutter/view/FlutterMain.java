@@ -105,14 +105,8 @@ public class FlutterMain {
         }
     }
 
-    interface SoLoader {
+    public interface SoLoader {
         void loadLibrary(Context context, String libraryName);
-    }
-
-    private static SoLoader sSoLoader;
-
-    public static void setSoLoader(SoLoader soLoader) {
-        sSoLoader = soLoader;
     }
 
     private static InitTask sInitTask;
@@ -132,8 +126,8 @@ public class FlutterMain {
                 initAot(context);
                 initResources(context);
 
-                if (sSoLoader != null) {
-                    sSoLoader.loadLibrary(context, "flutter");
+                if (sSettings.getSoLoader() != null) {
+                    sSettings.getSoLoader().loadLibrary(context, "flutter");
                 } else {
                     System.loadLibrary("flutter");
                 }
@@ -156,9 +150,19 @@ public class FlutterMain {
 
     public static class Settings {
         private String logTag;
+        private String nativeLibraryDir;
+        private SoLoader soLoader;
 
         public String getLogTag() {
             return logTag;
+        }
+
+        public String getNativeLibraryDir() {
+            return nativeLibraryDir;
+        }
+
+        public SoLoader getSoLoader() {
+            return soLoader;
         }
 
         /**
@@ -168,6 +172,15 @@ public class FlutterMain {
         public void setLogTag(String tag) {
             logTag = tag;
         }
+
+        public void setNativeLibraryDir(String dir) {
+            nativeLibraryDir = dir;
+        }
+
+        public void setSoLoader(SoLoader loader) {
+            soLoader = loader;
+        }
+
     }
 
     /**
@@ -227,9 +240,13 @@ public class FlutterMain {
             List<String> shellArgs = new ArrayList<>();
 
             shellArgs.add("--icu-symbol-prefix=_binary_icudtl_dat");
-            ApplicationInfo applicationInfo = applicationContext.getPackageManager().getApplicationInfo(
-                applicationContext.getPackageName(), PackageManager.GET_META_DATA);
-            shellArgs.add("--icu-native-lib-path=" + applicationInfo.nativeLibraryDir + File.separator + DEFAULT_LIBRARY);
+            String nativeLibraryDir = sSettings.getNativeLibraryDir();
+            if (nativeLibraryDir == null) {
+                ApplicationInfo applicationInfo = applicationContext.getPackageManager().getApplicationInfo(
+                        applicationContext.getPackageName(), PackageManager.GET_META_DATA);
+                nativeLibraryDir = applicationInfo.nativeLibraryDir;
+            }
+            shellArgs.add("--icu-native-lib-path=" + nativeLibraryDir + File.separator + DEFAULT_LIBRARY);
 
             if (args != null) {
                 Collections.addAll(shellArgs, args);
