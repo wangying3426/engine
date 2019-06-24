@@ -614,7 +614,9 @@ public class AccessibilityBridge extends AccessibilityNodeProvider {
         if (semanticsNode.parent != null) {
             Rect parentBounds = semanticsNode.parent.getGlobalRect();
             Rect boundsInParent = new Rect(bounds);
-            boundsInParent.offset(-parentBounds.left, -parentBounds.top);
+            if (parentBounds != null) {
+                boundsInParent.offset(-parentBounds.left, -parentBounds.top);
+            }
             result.setBoundsInParent(boundsInParent);
         } else {
             result.setBoundsInParent(bounds);
@@ -2023,6 +2025,9 @@ public class AccessibilityBridge extends AccessibilityNodeProvider {
             if (forceUpdate) {
                 if (globalTransform == null) {
                     globalTransform = new float[16];
+                }
+                if (ancestorTransform == null) {
+                    ancestorTransform = new float[16];
                 }
                 Matrix.multiplyMM(globalTransform, 0, ancestorTransform, 0, transform, 0);
 
