@@ -519,8 +519,14 @@ NSNotificationName const FlutterSemanticsUpdateNotification = @"FlutterSemantics
 
 - (void)applicationBecameActive:(NSNotification*)notification {
   TRACE_EVENT0("flutter", "applicationBecameActive");
-  if (_viewportMetrics.physical_width)
+  bool optimiseEnabled = [[NSUserDefaults standardUserDefaults]
+      boolForKey:@"flutter_optimise_enter_foreground_surface_enabled"];
+    
+  if (_viewportMetrics.physical_width &&
+      ((optimiseEnabled && self.view.window) || !optimiseEnabled)) {
     [self surfaceUpdated:YES];
+  }
+    
   [[_engine.get() lifecycleChannel] sendMessage:@"AppLifecycleState.resumed"];
 }
 
