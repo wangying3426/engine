@@ -23,6 +23,7 @@ extern const intptr_t kPlatformStrongDillSize;
 #endif
 }
 
+static id<DynamicFlutterDelegate> dynamicDelegate;
 static const char* kApplicationKernelSnapshotFileName = "kernel_blob.bin";
 
 static flutter::Settings DefaultSettingsForProcess(NSBundle* bundle = nil) {
@@ -103,14 +104,34 @@ static flutter::Settings DefaultSettingsForProcess(NSBundle* bundle = nil) {
 
   // Checks to see if the flutter assets directory is already present.
   if (settings.assets_path.size() == 0) {
+    NSFileManager* fileManager = [NSFileManager defaultManager];
     NSString* assetsName = [FlutterDartProject flutterAssetsName:bundle];
-    NSString* assetsPath = [bundle pathForResource:assetsName ofType:@""];
+    NSString* assetsPath = nil;
+    // check dynamic settings first
+    if (dynamicDelegate && [dynamicDelegate respondsToSelector:@selector(assetsPath)]) {
+      NSString* dynamicAssetsPath = [dynamicDelegate assetsPath];
+      if (dynamicAssetsPath && [dynamicAssetsPath isKindOfClass:[NSString class]]) {
+        BOOL isDirectory = NO;
+        BOOL isExist = [fileManager fileExistsAtPath:dynamicAssetsPath isDirectory:&isDirectory];
+        if (isDirectory && isExist) {
+          NSURL* kernelURL = [NSURL URLWithString:@(kApplicationKernelSnapshotFileName)
+                                    relativeToURL:[NSURL fileURLWithPath:dynamicAssetsPath]];
+          if ([fileManager fileExistsAtPath:kernelURL.path]) {
+            assetsPath = dynamicAssetsPath;
+          }
+        }
+      }
+    }
 
-    if (assetsPath.length == 0) {
+    if (!assetsPath || assetsPath.length == 0) {
+      assetsPath = [bundle pathForResource:assetsName ofType:@""];
+    }
+
+    if (!assetsPath || assetsPath.length == 0) {
       assetsPath = [mainBundle pathForResource:assetsName ofType:@""];
     }
 
-    if (assetsPath.length == 0) {
+    if (!assetsPath || assetsPath.length == 0) {
       NSLog(@"Failed to find assets path for \"%@\"", assetsName);
     } else {
       settings.assets_path = assetsPath.UTF8String;
@@ -122,7 +143,7 @@ static flutter::Settings DefaultSettingsForProcess(NSBundle* bundle = nil) {
         NSURL* applicationKernelSnapshotURL =
             [NSURL URLWithString:@(kApplicationKernelSnapshotFileName)
                    relativeToURL:[NSURL fileURLWithPath:assetsPath]];
-        if ([[NSFileManager defaultManager] fileExistsAtPath:applicationKernelSnapshotURL.path]) {
+        if ([fileManager fileExistsAtPath:applicationKernelSnapshotURL.path]) {
           settings.application_kernel_asset = applicationKernelSnapshotURL.path.UTF8String;
         } else {
           NSLog(@"Failed to find snapshot: %@", applicationKernelSnapshotURL.path);
@@ -167,6 +188,12 @@ static flutter::Settings DefaultSettingsForProcess(NSBundle* bundle = nil) {
   }
 
   return self;
+}
+
+#pragma mark - Dynamic
+
++ (void)registerDynamicDelegate:(id<DynamicFlutterDelegate>)delegate {
+  dynamicDelegate = delegate;
 }
 
 #pragma mark - Settings accessors
