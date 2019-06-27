@@ -280,6 +280,9 @@ void FlutterPlatformViewsController::DisposeViews() {
   for (int64_t viewId : views_to_dispose_) {
     UIView* touch_interceptor = touch_interceptors_[viewId].get();
     [touch_interceptor removeFromSuperview];
+    if (overlays_.find(viewId) != overlays_.end()) {
+      [overlays_[viewId]->overlay_view.get() removeFromSuperview];
+    }
     views_.erase(viewId);
     touch_interceptors_.erase(viewId);
     overlays_.erase(viewId);
