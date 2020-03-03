@@ -88,6 +88,15 @@ public final class FlutterActivityDelegate
          * when this activity is destroyed.
          */
         boolean retainFlutterNativeView();
+
+        /**
+         * Hook for subclasses to customize the creation of the
+         * {@code launchView}.
+         *
+         * <p>The default implementation returns {@code null}</p>
+         */
+        View createLaunchView();
+        void onLaunchViewDestroyed();
     }
 
     private final Activity activity;
@@ -161,6 +170,9 @@ public final class FlutterActivityDelegate
             flutterView.setLayoutParams(matchParent);
             activity.setContentView(flutterView);
             launchView = createLaunchView();
+            if (launchView == null) {
+                launchView = viewFactory.createLaunchView();
+            }
             if (launchView != null) {
                 addLaunchView();
             }
@@ -460,6 +472,7 @@ public final class FlutterActivityDelegate
                         public void onAnimationEnd(Animator animation) {
                             // Views added to an Activity's addContentView is always added to its
                             // root FrameLayout.
+                            viewFactory.onLaunchViewDestroyed();
                             ((ViewGroup) FlutterActivityDelegate.this.launchView.getParent())
                                 .removeView(FlutterActivityDelegate.this.launchView);
                             FlutterActivityDelegate.this.launchView = null;

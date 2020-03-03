@@ -69,6 +69,16 @@ public class FlutterActivity extends Activity implements FlutterView.Provider, P
     }
 
     @Override
+    public View createLaunchView() {
+        return null;
+    }
+
+    @Override
+    public void onLaunchViewDestroyed() {
+        
+    }
+    
+    @Override
     public final boolean hasPlugin(String key) {
         return pluginRegistry.hasPlugin(key);
     }
