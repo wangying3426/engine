@@ -810,6 +810,7 @@ static void SendFakeTouchEvent(FlutterEngine* engine,
 
 - (void)applicationWillResignActive:(NSNotification*)notification {
   TRACE_EVENT0("flutter", "applicationWillResignActive");
+  [self flushOngoingTouches];
   self.view.accessibilityElementsHidden = YES;
   [self goToApplicationLifecycle:@"AppLifecycleState.inactive"];
 }
