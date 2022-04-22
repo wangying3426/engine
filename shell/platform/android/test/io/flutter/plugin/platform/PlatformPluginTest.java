@@ -6,6 +6,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -45,6 +46,14 @@ import org.robolectric.annotation.Config;
 public class PlatformPluginTest {
   private final Context ctx = ApplicationProvider.getApplicationContext();
 
+  void safeSetPrimaryClip(ClipboardManager clipboardManager, ClipData clip) {
+    try {
+      clipboardManager.setPrimaryClip(clip);
+    } catch (SecurityException e) {
+      e.printStackTrace();
+    }
+  }
+
   @Config(sdk = 16)
   @Test
   public void itIgnoresNewHapticEventsOnOldAndroidPlatforms() {
@@ -80,15 +89,35 @@ public class PlatformPluginTest {
     ClipboardContentFormat clipboardFormat = ClipboardContentFormat.PLAIN_TEXT;
     assertNull(platformPlugin.mPlatformMessageHandler.getClipboardData(clipboardFormat));
     ClipData clip = ClipData.newPlainText("label", "Text");
-    clipboardManager.setPrimaryClip(clip);
+    safeSetPrimaryClip(clipboardManager, clip);
     assertNotNull(platformPlugin.mPlatformMessageHandler.getClipboardData(clipboardFormat));
 
     ContentResolver contentResolver = ctx.getContentResolver();
     when(fakeActivity.getContentResolver()).thenReturn(contentResolver);
     Uri uri = Uri.parse("content://media/external_primary/images/media/");
     clip = ClipData.newUri(contentResolver, "URI", uri);
-    clipboardManager.setPrimaryClip(clip);
+    safeSetPrimaryClip(clipboardManager, clip);
     assertNull(platformPlugin.mPlatformMessageHandler.getClipboardData(clipboardFormat));
+  }
+
+  @Config(sdk = 29)
+  @Test
+  public void platformPlugin_setClipboardData() {
+    ClipboardManager clipboardManager = spy(ctx.getSystemService(ClipboardManager.class));
+
+    View fakeDecorView = mock(View.class);
+    Window fakeWindow = mock(Window.class);
+    when(fakeWindow.getDecorView()).thenReturn(fakeDecorView);
+    Activity fakeActivity = mock(Activity.class);
+    when(fakeActivity.getWindow()).thenReturn(fakeWindow);
+    when(fakeActivity.getSystemService(Context.CLIPBOARD_SERVICE)).thenReturn(clipboardManager);
+    PlatformChannel fakePlatformChannel = mock(PlatformChannel.class);
+    PlatformPlugin platformPlugin = new PlatformPlugin(fakeActivity, fakePlatformChannel);
+    try {
+      platformPlugin.mPlatformMessageHandler.setClipboardData("Text");
+    } catch (SecurityException e) {
+      fail("Should not thrown a SecurityException since it has been catched.");
+    }
   }
 
   @Config(sdk = 28)
@@ -107,31 +136,31 @@ public class PlatformPluginTest {
 
     // Plain text
     ClipData clip = ClipData.newPlainText("label", "Text");
-    clipboardManager.setPrimaryClip(clip);
+    safeSetPrimaryClip(clipboardManager, clip);
     assertTrue(platformPlugin.mPlatformMessageHandler.clipboardHasStrings());
 
     // Empty plain text
     clip = ClipData.newPlainText("", "");
-    clipboardManager.setPrimaryClip(clip);
+    safeSetPrimaryClip(clipboardManager, clip);
     // Without actually accessing clipboard data (preferred behavior), it is not possible to
     // distinguish between empty and non-empty string contents.
     assertTrue(platformPlugin.mPlatformMessageHandler.clipboardHasStrings());
 
     // HTML text
     clip = ClipData.newHtmlText("motto", "Don't be evil", "<b>Don't</b> be evil");
-    clipboardManager.setPrimaryClip(clip);
+    safeSetPrimaryClip(clipboardManager, clip);
     assertTrue(platformPlugin.mPlatformMessageHandler.clipboardHasStrings());
 
     // Text MIME type
     clip = new ClipData("label", new String[] {"text/something"}, new ClipData.Item("content"));
-    clipboardManager.setPrimaryClip(clip);
+    safeSetPrimaryClip(clipboardManager, clip);
     assertTrue(platformPlugin.mPlatformMessageHandler.clipboardHasStrings());
 
     // Other MIME type
     clip =
         new ClipData(
             "label", new String[] {"application/octet-stream"}, new ClipData.Item("content"));
-    clipboardManager.setPrimaryClip(clip);
+    safeSetPrimaryClip(clipboardManager, clip);
     assertFalse(platformPlugin.mPlatformMessageHandler.clipboardHasStrings());
 
     if (Build.VERSION.SDK_INT >= 28) {
